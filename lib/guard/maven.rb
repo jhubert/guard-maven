@@ -33,8 +33,7 @@ module Guard
     # @return [Object] the task result
     #
     def run_all
-      system('mvn', 'clean', 'test')
-      notify('')
+      run_maven_tests
     end
 
     # Default behaviour on file(s) changes that the Guard plugin watches.
@@ -43,24 +42,112 @@ module Guard
     # @return [Object] the task result
     #
     def run_on_changes(paths)
-      puts paths
       # for now run all
       if paths.include? 'all'
         run_all
       else
-        system('mvn', 'clean', 'test', '-Dtest=' + paths.join(','))
-        notify('\n' + paths.join('\n'))
+        run_maven_tests :classes => paths
       end
     end
 
     private
 
-    def notify(name)
-      title = 'mvn test'
-      message = "mvn test #{$?.success? ? 'passed' : 'failed'}#{name}"
-      image = $?.success? ? :success : :failed
+    def notify(success, name, data={})
+      title = 'Maven Tests'
+      message = "Maven Test Results - #{data[:total_time]}:\n"
+      message += "Pass: #{data[:test_counts][:pass]} Fail: #{data[:test_counts][:fail]} Error: #{data[:test_counts][:error]} Skip: #{data[:test_counts][:skip]}"
+      image = success ? :success : :failed
       Notifier.notify(message, title: title, image: image)
     end
 
+    # Parses the results of the test run and
+    # returns useful information for reporting:
+    #  - number of tests
+    #  - number of failed tests
+    #  - number of errors
+    #  - number of skipped tests
+    #  - total time
+    #
+    # @param  results [String] The output of the test run
+    #
+    # @return [Hash] the relevant information
+    def parse_test_results(results)
+      data = { :success => true }
+
+      time = results.match(/\[INFO\] Total time: ([sm\d\.]+)/i)
+      data[:total_time] = time[1] if time
+
+      counts = results.match(/Tests run: (\d+), Failures: (\d+), Errors: (\d+), Skipped: (\d+)\n/)
+      if counts
+        data[:results] = counts[0]
+        data[:test_counts] = {
+          :total => counts[1].to_i,
+          :fail => counts[2].to_i,
+          :error => counts[3].to_i,
+          :skip => counts[4].to_i,
+          :pass => counts.to_a[1..-1].inject{|sum,x| sum.to_i - x.to_i }
+        }
+
+        data[:success] = false if counts[3].to_i + counts[2].to_i > 0
+      end
+
+      failures = results.match /Failed tests:(.*)\n\nTests run/im
+      data[:failures] = failures ? failures[1].split("\n").compact : []
+
+      data
+    end
+
+    def run_maven_tests(options={})
+      cmds = ['mvn', 'clean', 'test']
+
+      if options[:classes]
+        cmds << "-Dtest=#{options[:classes].join(',')}"
+        options[:name] ||= options[:classes].join("\n")
+        puts "Preparing tests for #{options[:classes].join(', ')}..."
+      else
+        puts "Preparing all tests..."
+      end
+
+      # User popen so that we can capture the test
+      # output as well as diplay it in terminal
+      output = []
+      IO.popen(cmds.join(' ')).each do |line|
+        if options[:verbose]
+          puts line.chomp
+        else
+          clean_output(line.chomp)
+        end
+        output << line.chomp
+      end
+      results = output.join("\n")
+
+      # Did the system command return successfully?
+      success = $?.success?
+
+      data = parse_test_results(results)
+      success = false unless data[:success]
+
+      unless options[:verbose]
+        puts "Failed Tests:\n#{data[:failures].join("\n")}"
+      end
+
+      notify(success, options[:name] || '', data)
+    end
+
+    def clean_output(line)
+      if line =~ /^Running/
+        puts line
+      elsif output = line.match(/Tests run: (\d+), Failures: (\d+), Errors: (\d+), Skipped: (\d+), Time elapsed:/)
+        match, total, fail, error, skip = output.to_a
+        pass = total.to_i - fail.to_i - error.to_i - skip.to_i
+        print "." * pass
+        print "E" * error.to_i
+        print "F" * fail.to_i
+        print "S" * skip.to_i
+        puts ""
+      else
+        # do nothing
+      end
+    end
   end
 end
