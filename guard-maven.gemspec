@@ -5,7 +5,7 @@ require 'guard/maven/version'
 
 Gem::Specification.new do |spec|
   spec.name          = "guard-maven"
-  spec.version       = Guard::Maven::VERSION
+  spec.version       = Guard::MavenVersion::VERSION
   spec.authors       = ["Jeremy Baker"]
   spec.email         = ["jhubert@gmail.com"]
   spec.description   = %q{Guard for Maven runs the clean and test commands for a Maven project}
