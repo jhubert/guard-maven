@@ -22,8 +22,8 @@ Run `guard init maven` to setup the Guardfile with a base watcher. Modify as nec
 
 ### Options
 
-__verbose__ _default: false_ Output ALL of the regular test output from the Maven tests
-__all_on_start__ _default: false_ Run all of the tests when Guard starts
+* __verbose__ _default: false_ Output ALL of the regular test output from the Maven tests
+* __all_on_start__ _default: false_ Run all of the tests when Guard starts
 
 ## Contributing
 
