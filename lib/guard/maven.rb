@@ -94,6 +94,11 @@ module Guard
       failures = results.match /Failed tests:(.*)\n\nTests run/im
       data[:failures] = failures ? failures[1].split("\n").compact : []
 
+      if results =~ /COMPILATION ERROR/
+        data[:success] = false
+        data[:dump] = true
+      end
+
       data
     end
 
@@ -112,7 +117,7 @@ module Guard
       # output as well as diplay it in terminal
       output = []
       IO.popen(cmds.join(' ')).each do |line|
-        if options[:verbose]
+        if @options[:verbose]
           puts line.chomp
         else
           clean_output(line.chomp)
@@ -127,8 +132,9 @@ module Guard
       data = parse_test_results(results)
       success = false unless data[:success]
 
-      unless options[:verbose]
-        puts "Failed Tests:\n#{data[:failures].join("\n")}"
+      unless @options[:verbose]
+        puts "Failed Tests:\n#{data[:failures].join("\n")}" unless data[:failures].empty?
+        puts results if data[:dump]
       end
 
       notify(success, options[:name] || '', data)
