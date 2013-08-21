@@ -54,8 +54,12 @@ module Guard
 
     def notify(success, name, data={})
       title = 'Maven Tests'
-      message = "Maven Test Results - #{data[:total_time]}:\n"
-      message += "Pass: #{data[:test_counts][:pass]} Fail: #{data[:test_counts][:fail]} Error: #{data[:test_counts][:error]} Skip: #{data[:test_counts][:skip]}"
+      message = "Maven Test Results:"
+      if data[:test_counts].empty?
+        message += "No Tests Run"
+      else
+        message = guard_message(data[:test_counts][:total], data[:test_counts][:fail],data[:test_counts][:error],data[:test_counts][:skip],data[:total_time])
+      end
       image = success ? :success : :failed
       Notifier.notify(message, title: title, image: image)
     end
@@ -72,7 +76,7 @@ module Guard
     #
     # @return [Hash] the relevant information
     def parse_test_results(results)
-      data = { :success => true }
+      data = { :success => true, :test_counts => [], :failures => [] }
 
       time = results.match(/\[INFO\] Total time: ([sm\d\.]+)/i)
       data[:total_time] = time[1] if time
@@ -154,6 +158,18 @@ module Guard
       else
         # do nothing
       end
+    end
+
+    def guard_message(test_count, failure_count, error_count, skip_count, duration)
+      message = "#{test_count} tests"
+      if skip_count > 0
+        message << " (#{skip_count} skipped)"
+      end
+      message << "\n#{failure_count} failures, #{error_count} errors"
+      if test_count
+        message << "\n\nFinished in #{duration}"
+      end
+      message
     end
   end
 end
