@@ -1,6 +1,6 @@
 # Guard::Maven
 
-TODO: Write a gem description
+A simple Guard for automatically running tests while working on a Maven project.
 
 ## Installation
 
@@ -18,7 +18,12 @@ Or install it yourself as:
 
 ## Usage
 
-TODO: Write usage instructions here
+Run `guard init maven` to setup the Guardfile with a base watcher. Modify as necessary to match your project.
+
+### Options
+
+__verbose__ _default: false_ Output ALL of the regular test output from the Maven tests
+__all_on_start__ _default: false_ Run all of the tests when Guard starts
 
 ## Contributing
 
