@@ -107,7 +107,7 @@ module Guard
     end
 
     def run_maven_tests(options={})
-      cmds = ['mvn', 'clean', 'test']
+      cmds = ['mvn', 'test', '-DfailIfNoTests=false']
 
       if options[:classes]
         cmds << "-Dtest=#{options[:classes].join(',')}"
