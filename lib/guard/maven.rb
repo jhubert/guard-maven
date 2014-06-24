@@ -121,6 +121,7 @@ module Guard
       # output as well as diplay it in terminal
       output = []
       IO.popen(cmds.join(' ')).each do |line|
+        line.encode!('UTF-8', 'binary', invalid: :replace, undef: :replace, replace: '')
         if @options[:verbose]
           puts line.chomp
         else
