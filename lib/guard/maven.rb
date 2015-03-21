@@ -1,8 +1,9 @@
-require 'guard'
-require 'guard/guard'
+require 'guard/compat/plugin'
+
+require 'childprocess'
 
 module Guard
-  class Maven < Guard
+  class Maven < Plugin
 
     # Initializes a Guard plugin.
     # Don't do any work here, especially as Guard plugins get initialized even if they are not in an active group!
@@ -12,7 +13,7 @@ module Guard
     # @option options [Symbol] group the group this Guard plugin belongs to
     # @option options [Boolean] any_return allow any object to be returned from a watcher
     #
-    def initialize(watchers = [], options = {})
+    def initialize(options = {})
       super
       @options = options
     end
@@ -23,7 +24,30 @@ module Guard
     # @return [Object] the task result
     #
     def start
+      start_cli
       run_all if @options[:all_on_start]
+    end
+
+    def start_cli
+      Compat::UI.info "Starting MVN cli..."
+
+      r, w = IO.pipe
+      @cli = ChildProcess.build("mvn", "org.twdata.maven:maven-cli-plugin:1.0.11:execute-phase")
+      @cli.io.stdout = @cli.io.stderr = w
+      @cli.duplex = true
+      @cli.start
+      # w.close
+
+      @cliOut = r
+      @cliIn = @cli.io.stdin
+
+      # Wait until cli has started and opened socket access.
+      while true
+        line = @cliOut.readline
+        puts line
+        break if line.match(/Waiting for commands/)
+      end
+      Compat::UI.info "Maven CLI has started"
     end
 
     # Called when just `enter` is pressed
@@ -41,7 +65,7 @@ module Guard
     # @raise [:task_has_failed] when run_on_change has failed
     # @return [Object] the task result
     #
-    def run_on_changes(paths)
+    def run_on_modifications(paths)
       # for now run all
       if paths.include? 'all'
         run_all
@@ -107,44 +131,48 @@ module Guard
     end
 
     def run_maven_tests(options={})
-      cmds = ['mvn', 'test', '-DfailIfNoTests=false']
+      # cmds = ['mvn'] + (@options[:goals] || ['clean', 'test'])
+      cmds = @options[:goals] || ['clean', 'test', '-DfailIfNoTests=false']
 
       if options[:classes]
         cmds << "-Dtest=#{options[:classes].join(',')}"
         options[:name] ||= options[:classes].join("\n")
-        puts "Preparing tests for #{options[:classes].join(', ')}..."
-      else
-        puts "Preparing all tests..."
       end
 
-      # User popen so that we can capture the test
-      # output as well as diplay it in terminal
+      Compat::UI.info "Running #{cmds.join ' '}" if @options[:verbose]
+
       output = []
-      str = []
-      IO.popen(cmds.join(' ')).each_char do |char|
-        char.encode!('UTF-8', 'binary', invalid: :replace, undef: :replace, replace: '')
-        print char if @options[:verbose]
+      welcome = @cliOut.read(7).strip
+      raise "Unexpected output '#{welcome}' when talking to cli" unless welcome == "maven>"
 
-        if char == "\n"
-          line = str.join.chomp
-          str = []
-          clean_output line unless @options[:verbose]
-          output << line
-        else
-          str << char
+      @cliIn.puts cmds.join(' ')
+
+      while true
+        # Peek at the first 7 chars of next line. If it's maven> then the command finished and is waiting for more input.
+        peek = @cliOut.read(7)
+
+        if peek == "maven> "
+          break
         end
-      end
-      results = output.join("\n")
 
-      # Did the system command return successfully?
-      success = $?.success?
+        line = peek + @cliOut.readline
+
+        Compat::UI.info line.chomp if @options[:verbose]
+        clean_output(line.chomp) unless @options[:verbose]
+        output << line.chomp
+      end
+
+      # Put an empty line to CLI, so that it outputs another prompt that we don't consume until next run.
+      @cliIn.puts("")
+
+      results = output.join("\n")
 
       data = parse_test_results(results)
       success = false unless data[:success]
 
       unless @options[:verbose]
-        puts "Failed Tests:\n#{data[:failures].join("\n")}" unless data[:failures].empty?
-        puts results if data[:dump]
+        Compat::UI.info "Failed Tests:\n#{data[:failures].join("\n")}" unless data[:failures].empty?
+        Compat::UI.info results if data[:dump]
       end
 
       notify(success, options[:name] || '', data)
