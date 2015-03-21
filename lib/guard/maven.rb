@@ -44,7 +44,6 @@ module Guard
       # Wait until cli has started and opened socket access.
       while true
         line = @cliOut.readline
-        puts line
         break if line.match(/Waiting for commands/)
       end
       Compat::UI.info "Maven CLI has started"
