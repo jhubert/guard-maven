@@ -125,13 +125,13 @@ module Guard
         char.encode!('UTF-8', 'binary', invalid: :replace, undef: :replace, replace: '')
         print char if @options[:verbose]
 
-        if char == '\n'
+        if char == "\n"
           line = str.join.chomp
           str = []
           clean_output line unless @options[:verbose]
           output << line
         else
-          str << []
+          str << char
         end
       end
       results = output.join("\n")
