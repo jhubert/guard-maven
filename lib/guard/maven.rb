@@ -120,14 +120,19 @@ module Guard
       # User popen so that we can capture the test
       # output as well as diplay it in terminal
       output = []
-      IO.popen(cmds.join(' ')).each do |line|
-        line.encode!('UTF-8', 'binary', invalid: :replace, undef: :replace, replace: '')
-        if @options[:verbose]
-          puts line.chomp
+      str = []
+      IO.popen(cmds.join(' ')).each_char do |char|
+        char.encode!('UTF-8', 'binary', invalid: :replace, undef: :replace, replace: '')
+        print char if @options[:verbose]
+
+        if char == '\n'
+          line = str.join.chomp
+          str = []
+          clean_output line unless @options[:verbose]
+          output << line
         else
-          clean_output(line.chomp)
+          str << []
         end
-        output << line.chomp
       end
       results = output.join("\n")
 
