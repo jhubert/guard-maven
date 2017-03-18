@@ -58,7 +58,11 @@ module Guard
       if data[:test_counts].empty?
         message += "No Tests Run"
       else
-        message = guard_message(data[:test_counts][:total], data[:test_counts][:fail],data[:test_counts][:error],data[:test_counts][:skip],data[:total_time])
+        message = guard_message(data[:test_counts][:total],
+                                data[:test_counts][:fail],
+                                data[:test_counts][:error],
+                                data[:test_counts][:skip],
+                                data[:total_time])
       end
       image = success ? :success : :failed
       Notifier.notify(message, title: title, image: image)
@@ -95,7 +99,7 @@ module Guard
         data[:success] = false if counts[3].to_i + counts[2].to_i > 0
       end
 
-      failures = results.match /Failed tests:(.*)\n\nTests run/im
+      failures = results.match(/Failed tests:(.*)\n\nTests run/im)
       data[:failures] = failures ? failures[1].split("\n").compact : []
 
       if results =~ /COMPILATION ERROR/
@@ -117,11 +121,15 @@ module Guard
         puts "Preparing all tests..."
       end
 
+      cmds << @options[:args] if @options[:args]
+      cmd = cmds.join ' '
+      puts cmd
+
       # User popen so that we can capture the test
-      # output as well as diplay it in terminal
+      # output as well as display it in terminal
       output = []
       str = []
-      IO.popen(cmds.join(' ')).each_char do |char|
+      IO.popen(cmd).each_char do |char|
         char.encode!('UTF-8', 'binary', invalid: :replace, undef: :replace, replace: '')
         print char if @options[:verbose]
 
