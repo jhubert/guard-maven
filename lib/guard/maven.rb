@@ -1,8 +1,8 @@
 require 'guard'
-require 'guard/guard'
+require 'guard/compat/plugin'
 
 module Guard
-  class Maven < Guard
+  class Maven < Plugin
 
     # Initializes a Guard plugin.
     # Don't do any work here, especially as Guard plugins get initialized even
@@ -13,7 +13,7 @@ module Guard
     # @option options [Symbol] group the group this Guard plugin belongs to
     # @option options [Boolean] any_return allow any object to be returned from a watcher
     #
-    def initialize(watchers = [], options = {})
+    def initialize(options = {})
       super
       @options = options
     end
@@ -44,7 +44,7 @@ module Guard
     # @raise [:task_has_failed] when run_on_change has failed
     # @return [Object] the task result
     #
-    def run_on_changes(paths)
+    def run_on_modifications(paths)
       if paths.include? 'all'
         run_all
       elsif paths.include? 'compile'
@@ -153,7 +153,7 @@ module Guard
         else
           str << char
         end
-      end
+      end.close
       results = output.join("\n")
 
       # Did the system command return successfully?
