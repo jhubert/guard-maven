@@ -5,7 +5,8 @@ module Guard
   class Maven < Guard
 
     # Initializes a Guard plugin.
-    # Don't do any work here, especially as Guard plugins get initialized even if they are not in an active group!
+    # Don't do any work here, especially as Guard plugins get initialized even
+    # if they are not in an active group!
     #
     # @param [Array<Guard::Watcher>] watchers the Guard plugin file watchers
     # @param [Hash] options the custom Guard plugin options
@@ -17,7 +18,8 @@ module Guard
       @options = options
     end
 
-    # Called once when Guard starts. Please override initialize method to init stuff.
+    # Called once when Guard starts. Please override initialize method to init
+    # stuff.
     #
     # @raise [:task_has_failed] when start has failed
     # @return [Object] the task result
@@ -27,13 +29,14 @@ module Guard
     end
 
     # Called when just `enter` is pressed
-    # This method should be principally used for long action like running all specs/tests/...
+    # This method should be principally used for long action like running all
+    # specs/tests/...
     #
     # @raise [:task_has_failed] when run_all has failed
     # @return [Object] the task result
     #
     def run_all
-      run_maven_tests
+      run_maven
     end
 
     # Default behaviour on file(s) changes that the Guard plugin watches.
@@ -42,11 +45,12 @@ module Guard
     # @return [Object] the task result
     #
     def run_on_changes(paths)
-      # for now run all
       if paths.include? 'all'
         run_all
+      elsif paths.include? 'compile'
+        run_maven :compile => true
       else
-        run_maven_tests :classes => paths
+        run_maven :classes => paths
       end
     end
 
@@ -110,23 +114,31 @@ module Guard
       data
     end
 
-    def run_maven_tests(options={})
-      cmds = ['mvn', 'test', '-DfailIfNoTests=false']
+    def run_maven(options={})
+      puts # start with a newline to get past prompt.
 
-      if options[:classes]
-        cmds << "-Dtest=#{options[:classes].join(',')}"
-        options[:name] ||= options[:classes].join("\n")
-        puts "Preparing tests for #{options[:classes].join(', ')}..."
+      cmds = ['mvn']
+
+      if options[:compile]
+        cmds << 'compile'
+        puts 'Compiling...'
       else
-        puts "Preparing all tests..."
+        cmds += ['test', '-DfailIfNoTests=false']
+        if options[:classes]
+          cmds << "-Dtest=#{options[:classes].join(',')}"
+          options[:name] ||= options[:classes].join("\n")
+          puts "Preparing tests for #{options[:classes].join(', ')}..."
+        else
+          puts "Preparing all tests..."
+        end
       end
 
       cmds << @options[:args] if @options[:args]
       cmd = cmds.join ' '
       puts cmd
 
-      # User popen so that we can capture the test
-      # output as well as display it in terminal
+      # Use popen so that we can capture the test output as well as display it
+      # in terminal
       output = []
       str = []
       IO.popen(cmd).each_char do |char|
